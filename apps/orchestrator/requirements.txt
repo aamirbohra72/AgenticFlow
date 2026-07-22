@@ -1,0 +1,7 @@
+django>=5.0
+djangorestframework
+psycopg2-binary
+pika
+python-dotenv
+upstash-redis
+dj-database-url

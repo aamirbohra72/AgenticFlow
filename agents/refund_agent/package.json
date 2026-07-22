@@ -1,0 +1,7 @@
+{
+  "name": "refund-agent",
+  "private": true,
+  "scripts": {
+    "dev": "python app.py"
+  }
+}

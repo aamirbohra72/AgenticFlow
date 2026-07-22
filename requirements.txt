@@ -1,0 +1,5 @@
+# Combined requirements for local development (install into one venv)
+-r apps/orchestrator/requirements.txt
+flask
+crewai>=0.80,<1.0
+ag2

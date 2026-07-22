@@ -1,0 +1,5 @@
+flask
+pika
+crewai>=0.80,<1.0
+python-dotenv
+psycopg2-binary

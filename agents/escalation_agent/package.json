@@ -1,0 +1,7 @@
+{
+  "name": "escalation-agent",
+  "private": true,
+  "scripts": {
+    "dev": "python app.py"
+  }
+}
