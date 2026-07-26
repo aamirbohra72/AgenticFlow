@@ -12,7 +12,7 @@ from crew import run_refund_crew
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_NAME = "refund.tasks"
+QUEUE_NAME = "refund.tasks.v2"
 AGENT_NAME = "refund_agent"
 
 

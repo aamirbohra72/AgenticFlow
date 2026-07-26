@@ -11,11 +11,13 @@ class CoreConfig(AppConfig):
     _consumer_started = False
 
     def ready(self):
-        # Skip management commands that should not open a long-lived AMQP consumer
+        # Skip management commands / tests that should not open a long-lived AMQP consumer
         if any(
             cmd in sys.argv
-            for cmd in ("migrate", "makemigrations", "seed_demo_data", "shell", "check", "createsuperuser")
+            for cmd in ("migrate", "makemigrations", "seed_demo_data", "shell", "check", "createsuperuser", "test")
         ):
+            return
+        if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
             return
 
         # Django autoreloader: parent has no RUN_MAIN, child has RUN_MAIN=true.

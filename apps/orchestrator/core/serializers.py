@@ -19,6 +19,8 @@ class ConversationListSerializer(serializers.ModelSerializer):
             "confidence_score",
             "was_escalated",
             "agents_involved",
+            "error_message",
+            "request_id",
             "created_at",
             "updated_at",
         ]
@@ -26,6 +28,7 @@ class ConversationListSerializer(serializers.ModelSerializer):
 
 class QueryResponseSerializer(serializers.ModelSerializer):
     trace = serializers.SerializerMethodField()
+    latency_ms = serializers.SerializerMethodField()
 
     class Meta:
         model = ConversationLog
@@ -35,12 +38,15 @@ class QueryResponseSerializer(serializers.ModelSerializer):
             "intent",
             "status",
             "final_response",
+            "error_message",
             "last_agent_name",
             "confidence_score",
             "was_escalated",
             "agents_involved",
+            "request_id",
             "created_at",
             "updated_at",
+            "latency_ms",
             "trace",
         ]
 
@@ -48,3 +54,8 @@ class QueryResponseSerializer(serializers.ModelSerializer):
         from core.redis_client import get_trace
 
         return get_trace(str(obj.conversation_id))
+
+    def get_latency_ms(self, obj):
+        if not obj.created_at or not obj.updated_at:
+            return None
+        return int((obj.updated_at - obj.created_at).total_seconds() * 1000)

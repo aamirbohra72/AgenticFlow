@@ -16,5 +16,90 @@ services:
       timeout: 5s
       retries: 5
 
+  orchestrator:
+    build:
+      context: ./apps/orchestrator
+      dockerfile: Dockerfile
+    container_name: agentic-orchestrator
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  order_agent:
+    build:
+      context: .
+      dockerfile: agents/order_agent/Dockerfile
+    container_name: agentic-order-agent
+    ports:
+      - "5001:5001"
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      ORDER_AGENT_PORT: "5001"
+      CREWAI_TESTING: "true"
+      CREWAI_TRACING_ENABLED: "false"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  inventory_agent:
+    build:
+      context: .
+      dockerfile: agents/inventory_agent/Dockerfile
+    container_name: agentic-inventory-agent
+    ports:
+      - "5002:5002"
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      INVENTORY_AGENT_PORT: "5002"
+      CREWAI_TESTING: "true"
+      CREWAI_TRACING_ENABLED: "false"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  refund_agent:
+    build:
+      context: .
+      dockerfile: agents/refund_agent/Dockerfile
+    container_name: agentic-refund-agent
+    ports:
+      - "5003:5003"
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      REFUND_AGENT_PORT: "5003"
+      CREWAI_TESTING: "true"
+      CREWAI_TRACING_ENABLED: "false"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  escalation_agent:
+    build:
+      context: .
+      dockerfile: agents/escalation_agent/Dockerfile
+    container_name: agentic-escalation-agent
+    ports:
+      - "5004:5004"
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      ESCALATION_AGENT_PORT: "5004"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   rabbitmq_data:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agentic Order Flow — Dashboard</title>
+  <title>Agentic Order Flow v{{ version }} — Dashboard</title>
   <style>
     :root {
       --bg: #f3f5f2;
@@ -36,11 +36,7 @@
       gap: 1rem;
       flex-wrap: wrap;
     }
-    header h1 {
-      margin: 0;
-      font-size: 1.4rem;
-      letter-spacing: -0.02em;
-    }
+    header h1 { margin: 0; font-size: 1.4rem; letter-spacing: -0.02em; }
     header p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
     .health {
       font-size: 0.85rem;
@@ -57,9 +53,7 @@
       gap: 1.25rem;
       padding: 1rem 2rem 2rem;
     }
-    @media (max-width: 960px) {
-      main { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -74,44 +68,51 @@
       letter-spacing: 0.06em;
       color: var(--muted);
     }
-    textarea {
+    input[type="text"], textarea {
       width: 100%;
-      min-height: 96px;
-      resize: vertical;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 0.75rem;
+      padding: 0.65rem 0.75rem;
       font: inherit;
       background: #fbfcfb;
     }
-    .actions {
-      display: flex;
-      gap: 0.6rem;
-      margin-top: 0.75rem;
-      flex-wrap: wrap;
-    }
+    textarea { min-height: 96px; resize: vertical; }
+    .actions { display: flex; gap: 0.6rem; margin-top: 0.75rem; flex-wrap: wrap; }
     button, .chip {
-      border: 0;
-      border-radius: 8px;
-      padding: 0.55rem 0.9rem;
-      font: inherit;
-      cursor: pointer;
+      border: 0; border-radius: 8px; padding: 0.55rem 0.9rem; font: inherit; cursor: pointer;
     }
-    button.primary {
-      background: var(--accent);
-      color: white;
-    }
-    button.secondary {
-      background: var(--accent-soft);
-      color: var(--accent);
-    }
-    .chip {
-      background: #eef2ef;
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
+    button.primary { background: var(--accent); color: white; }
+    button.secondary { background: var(--accent-soft); color: var(--accent); }
+    .chip { background: #eef2ef; color: var(--muted); font-size: 0.8rem; }
     .chip:hover { background: var(--accent-soft); color: var(--accent); }
-    #result, #detail {
+    #result {
+      margin-top: 1rem;
+      background: #f7faf8;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 0.9rem;
+      max-height: 360px;
+      overflow: auto;
+      font-size: 1rem;
+      line-height: 1.45;
+      white-space: normal;
+    }
+    #result .answer { white-space: pre-wrap; word-break: break-word; }
+    #result .answer-meta { margin-top: 0.6rem; font-size: 0.82rem; color: var(--muted); }
+    #result details { margin-top: 0.7rem; font-size: 0.8rem; color: var(--muted); }
+    #result details pre {
+      margin: 0.4rem 0 0;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.75rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #d7ebe4;
+      background: #0f1a17;
+      border-radius: 6px;
+      padding: 0.65rem;
+    }
+    #detail, #metricsBox {
       margin-top: 1rem;
       white-space: pre-wrap;
       font-family: ui-monospace, Consolas, monospace;
@@ -123,52 +124,34 @@
       max-height: 360px;
       overflow: auto;
     }
-    .list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.55rem;
-      max-height: 520px;
-      overflow: auto;
-    }
+    .list { display: flex; flex-direction: column; gap: 0.55rem; max-height: 420px; overflow: auto; }
     .item {
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 0.7rem 0.8rem;
       cursor: pointer;
-      transition: border-color 0.15s ease, background 0.15s ease;
     }
-    .item:hover, .item.active {
-      border-color: var(--accent);
-      background: #f4fffc;
-    }
+    .item:hover, .item.active { border-color: var(--accent); background: #f4fffc; }
     .item .meta {
-      display: flex;
-      justify-content: space-between;
-      gap: 0.5rem;
-      font-size: 0.78rem;
-      color: var(--muted);
-      margin-bottom: 0.35rem;
+      display: flex; justify-content: space-between; gap: 0.5rem;
+      font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem;
     }
     .badge {
-      display: inline-block;
-      padding: 0.1rem 0.45rem;
-      border-radius: 999px;
-      font-size: 0.72rem;
-      background: #e8efe9;
+      display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px;
+      font-size: 0.72rem; background: #e8efe9;
     }
     .badge.escalated { background: #ffedd5; color: var(--warn); }
     .badge.resolved { background: #dcfce7; color: var(--ok); }
-    .query-line {
-      font-size: 0.92rem;
-      line-height: 1.35;
-    }
+    .badge.failed { background: #fee2e2; color: var(--danger); }
+    .meta-row { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0 0.25rem; }
   </style>
 </head>
 <body>
   <header>
     <div>
-      <h1>Agentic Order Flow</h1>
-      <p>Query playground + live agent trace browser</p>
+      <h1>Agentic Order Flow <span style="color:var(--muted);font-weight:500;">v{{ version }}</span></h1>
+      <p>API-key protected playground + live agent trace</p>
     </div>
     <div id="health" class="health">Checking health…</div>
   </header>
@@ -176,13 +159,16 @@
   <main>
     <section class="panel">
       <h2>Submit query</h2>
-      <p style="margin:0 0 0.75rem;color:var(--muted);font-size:0.9rem;">
-        1) Click a demo chip to fill the box &nbsp;→&nbsp; 2) Click <strong>Send to agents</strong>
+      <label for="apiKey">API key (X-API-Key)</label>
+      <input id="apiKey" type="text" value="{{ api_key }}" autocomplete="off" />
+      <p style="margin:0.75rem 0;color:var(--muted);font-size:0.9rem;">
+        1) Click a demo chip &nbsp;→&nbsp; 2) Or edit + <strong>Send to agents</strong>
       </p>
-      <textarea id="query" placeholder='Where is my order #1234?'>Where is my order #1234?</textarea>
+      <textarea id="query">Where is my order #1234?</textarea>
       <div class="actions">
         <button class="primary" id="send">Send to agents</button>
         <button class="secondary" id="refresh">Refresh list</button>
+        <button class="secondary" id="loadMetrics">Load metrics</button>
       </div>
       <div class="actions">
         <button class="chip" data-q="Where is my order #1234?" data-send="1">Run Order #1234</button>
@@ -190,7 +176,9 @@
         <button class="chip" data-q="I want a refund for order #5678, item was defective" data-send="1">Run Refund #5678</button>
         <button class="chip" data-q="I need a refund for order #3333, shoes are defective" data-send="1">Run Escalate #3333</button>
       </div>
-      <div id="result">Response will appear here…</div>
+      <div class="meta-row" id="lastMeta">request_id: — · latency: —</div>
+      <div id="result">Agent answer will appear here after you click a Run chip or Send…</div>
+      <div id="metricsBox" style="display:none;"></div>
     </section>
 
     <section class="panel">
@@ -205,6 +193,11 @@
 
   <script>
     let selectedId = null;
+    const defaultApiKey = "{{ api_key|escapejs }}";
+
+    function apiKey() {
+      return document.getElementById("apiKey").value.trim() || defaultApiKey;
+    }
 
     function getCookie(name) {
       const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -212,18 +205,75 @@
     }
 
     function apiHeaders(extra = {}) {
-      const headers = { "Content-Type": "application/json", ...extra };
+      const headers = { "Content-Type": "application/json", "X-API-Key": apiKey(), ...extra };
       const csrf = getCookie("csrftoken");
       if (csrf) headers["X-CSRFToken"] = csrf;
       return headers;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderAnswer(el, data, extraMeta = "") {
+      if (data.error) {
+        el.textContent = data.error + (data.error_message ? `\n${data.error_message}` : "");
+        return;
+      }
+      const answer = data.final_response || "(No final_response yet)";
+      const bits = [
+        data.status && `status: ${data.status}`,
+        data.last_agent_name && `agent: ${data.last_agent_name}`,
+        Array.isArray(data.agents_involved) && data.agents_involved.length
+          ? `path: ${data.agents_involved.join(" → ")}`
+          : "",
+        data.was_escalated ? "escalated: yes" : "",
+        extraMeta,
+      ].filter(Boolean);
+      el.innerHTML = `
+        <div class="answer">${escapeHtml(answer)}</div>
+        <div class="answer-meta">${escapeHtml(bits.join(" · "))}</div>
+        <details>
+          <summary>Raw API JSON</summary>
+          <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        </details>
+      `;
+    }
+
+    function badgeClass(row) {
+      if (row.status === "failed") return "failed";
+      if (row.was_escalated) return "escalated";
+      if (row.status === "resolved") return "resolved";
+      return "";
+    }
+
+    async function parseJsonResponse(res) {
+      const text = await res.text();
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      if (!ct.includes("application/json")) {
+        const snippet = text.replace(/\s+/g, " ").slice(0, 180);
+        throw new Error(
+          `Expected JSON from ${res.url} but got HTTP ${res.status} (${ct || "unknown type"}): ${snippet}`
+        );
+      }
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Invalid JSON (HTTP ${res.status}): ${text.slice(0, 180)}`);
+      }
     }
 
     async function loadHealth() {
       const el = document.getElementById("health");
       try {
         const res = await fetch("/api/health/");
-        const data = await res.json();
-        el.textContent = `System: ${data.status}`;
+        const data = await parseJsonResponse(res);
+        const rid = res.headers.get("X-Request-ID") || data.request_id || "";
+        el.textContent = `System: ${data.status}` + (rid ? ` · ${rid.slice(0, 8)}` : "");
         el.className = "health " + (data.status === "healthy" ? "ok" : "bad");
       } catch (e) {
         el.textContent = "System: unreachable";
@@ -233,36 +283,50 @@
 
     async function loadConversations() {
       const list = document.getElementById("list");
-      const res = await fetch("/api/conversations/?limit=30");
-      const rows = await res.json();
-      if (!rows.length) {
-        list.textContent = "No conversations yet.";
-        return;
+      try {
+        const res = await fetch("/api/conversations/?limit=30", { headers: apiHeaders() });
+        if (res.status === 401) {
+          list.textContent = "Unauthorized — set a valid API key above.";
+          return;
+        }
+        const rows = await parseJsonResponse(res);
+        if (!Array.isArray(rows) || !rows.length) {
+          list.textContent = "No conversations yet.";
+          return;
+        }
+        list.innerHTML = "";
+        rows.forEach((row) => {
+          const div = document.createElement("div");
+          div.className = "item" + (row.conversation_id === selectedId ? " active" : "");
+          const label = row.status === "failed" ? "failed" : (row.was_escalated ? "escalated" : row.status);
+          div.innerHTML = `
+            <div class="meta">
+              <span>${row.intent || "?"} · ${row.last_agent_name || "—"}</span>
+              <span class="badge ${badgeClass(row)}">${label}</span>
+            </div>
+            <div class="query-line">${row.query_text}</div>
+          `;
+          div.onclick = () => selectConversation(row.conversation_id);
+          list.appendChild(div);
+        });
+      } catch (e) {
+        list.textContent = String(e.message || e);
       }
-      list.innerHTML = "";
-      rows.forEach((row) => {
-        const div = document.createElement("div");
-        div.className = "item" + (row.conversation_id === selectedId ? " active" : "");
-        const badgeClass = row.was_escalated ? "escalated" : (row.status === "resolved" ? "resolved" : "");
-        div.innerHTML = `
-          <div class="meta">
-            <span>${row.intent || "?"} · ${row.last_agent_name || "—"}</span>
-            <span class="badge ${badgeClass}">${row.was_escalated ? "escalated" : row.status}</span>
-          </div>
-          <div class="query-line">${row.query_text}</div>
-        `;
-        div.onclick = () => selectConversation(row.conversation_id);
-        list.appendChild(div);
-      });
     }
 
     async function selectConversation(id) {
       selectedId = id;
       document.getElementById("reprocess").disabled = false;
       await loadConversations();
-      const res = await fetch(`/api/conversations/${id}/`);
-      const data = await res.json();
-      document.getElementById("detail").textContent = JSON.stringify(data, null, 2);
+      try {
+        const res = await fetch(`/api/conversations/${id}/`, { headers: apiHeaders() });
+        const data = await parseJsonResponse(res);
+        document.getElementById("detail").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("lastMeta").textContent =
+          `request_id: ${data.request_id || "—"} · latency: ${data.latency_ms ?? "—"} ms · agents: ${(data.agents_involved || []).join(" → ") || "—"}`;
+      } catch (e) {
+        document.getElementById("detail").textContent = String(e.message || e);
+      }
     }
 
     async function sendQuery() {
@@ -273,14 +337,19 @@
         return;
       }
       resultEl.textContent = "Waiting for agents (CrewAI / AutoGen via RabbitMQ)…";
+      const t0 = performance.now();
       try {
         const res = await fetch("/api/query/", {
           method: "POST",
           headers: apiHeaders(),
           body: JSON.stringify({ query }),
         });
-        const data = await res.json();
-        resultEl.textContent = JSON.stringify(data, null, 2);
+        const data = await parseJsonResponse(res);
+        const headerRid = res.headers.get("X-Request-ID");
+        const elapsed = Math.round(performance.now() - t0);
+        renderAnswer(resultEl, data, `wait: ${elapsed} ms`);
+        document.getElementById("lastMeta").textContent =
+          `request_id: ${data.request_id || headerRid || "—"} · client_wait: ${elapsed} ms · latency_ms: ${data.latency_ms ?? "—"} · agents: ${(data.agents_involved || []).join(" → ") || "—"}`;
         if (data.conversation_id) {
           selectedId = data.conversation_id;
           document.getElementById("reprocess").disabled = false;
@@ -288,7 +357,7 @@
         await loadConversations();
         if (data.conversation_id) await selectConversation(data.conversation_id);
       } catch (e) {
-        resultEl.textContent = String(e);
+        resultEl.textContent = String(e.message || e);
       }
     }
 
@@ -296,18 +365,35 @@
       if (!selectedId) return;
       const resultEl = document.getElementById("result");
       resultEl.textContent = `Reprocessing ${selectedId}…`;
-      const res = await fetch(`/api/conversations/${selectedId}/reprocess/`, {
-        method: "POST",
-        headers: apiHeaders(),
-      });
-      const data = await res.json();
-      resultEl.textContent = JSON.stringify(data, null, 2);
-      await selectConversation(selectedId);
+      try {
+        const res = await fetch(`/api/conversations/${selectedId}/reprocess/`, {
+          method: "POST",
+          headers: apiHeaders(),
+        });
+        const data = await parseJsonResponse(res);
+        renderAnswer(resultEl, data, "reprocessed");
+        await selectConversation(selectedId);
+      } catch (e) {
+        resultEl.textContent = String(e.message || e);
+      }
+    }
+
+    async function loadMetrics() {
+      const box = document.getElementById("metricsBox");
+      box.style.display = "block";
+      try {
+        const res = await fetch("/api/metrics/", { headers: apiHeaders() });
+        const data = await parseJsonResponse(res);
+        box.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        box.textContent = String(e.message || e);
+      }
     }
 
     document.getElementById("send").onclick = sendQuery;
     document.getElementById("refresh").onclick = loadConversations;
     document.getElementById("reprocess").onclick = reprocess;
+    document.getElementById("loadMetrics").onclick = loadMetrics;
     document.querySelectorAll(".chip").forEach((btn) => {
       btn.onclick = async () => {
         document.getElementById("query").value = btn.dataset.q;

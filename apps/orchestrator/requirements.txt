@@ -5,3 +5,5 @@ pika
 python-dotenv
 upstash-redis
 dj-database-url
+pytest
+pytest-django

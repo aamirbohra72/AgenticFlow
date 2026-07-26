@@ -1,50 +1,46 @@
-# Agentic Order Flow
+# Agentic Order Flow (v2)
 
 Multi-agent customer service system with a Django orchestrator, Flask specialist agents, RabbitMQ message transport, Neon Postgres, and Upstash Redis.
 
 ## Architecture
 
 ```
-Customer → Django (POST /api/query/)
-              ↓ publish task
-         RabbitMQ queue (order|inventory|refund|escalation).tasks
-              ↓ consume
-         Flask Agent (CrewAI or AutoGen)
-              ↓ query Postgres / reason
-              ↓ publish result
-         RabbitMQ orchestrator.results
-              ↓ consume (background thread)
-         Django → update Postgres + Redis trace → return response
+Client / Dashboard
+       │  API_KEY + X-Request-ID
+       ▼
+Django Orchestrator ──publish task + correlation_id──► RabbitMQ
+       │                                                    │
+       │◄──────── results (+ DLQ on poison) ────────────────┤
+       ▼                                                    ▼
+ Neon Postgres / Redis                              Flask Agents
 ```
 
-**Key interview talking point:** Agents never call each other over HTTP. RabbitMQ is the A2A (agent-to-agent) transport. Django publishes tasks; agents publish results; Django synthesizes the final answer.
+**Interview talking point:** Agents never call each other over HTTP. RabbitMQ is the A2A transport. Django publishes tasks; agents publish results; Django synthesizes the answer. v2 adds API-key auth, correlation IDs, DLQs, idempotent result handling, and metrics.
 
 ## Prerequisites
 
 - Python 3.11+
-- Node.js 18+ (for TurboRepo)
-- Docker Desktop (for RabbitMQ)
+- Node.js 18+ (for TurboRepo local dev)
+- Docker Desktop (RabbitMQ, or full stack)
 
-## Quick start
+## Quick start (host development)
 
-### 1. Clone and configure environment
+### 1. Configure environment
 
 ```bash
 cp .env.example .env
-# Edit .env with your Neon, Upstash, and Mistral credentials
+# Edit .env with Neon, Upstash, Mistral, and API_KEY
 ```
 
-### 2. Start RabbitMQ
+### 2. Start RabbitMQ only
 
 ```bash
-docker compose up -d
+docker compose up -d rabbitmq
 ```
 
-RabbitMQ management UI: http://localhost:15672 (guest / guest)
+Management UI: http://localhost:15672 (guest / guest)
 
-### 3. Install Python dependencies
-
-Create a virtualenv at the repo root (recommended):
+### 3. Install dependencies
 
 ```bash
 python -m venv .venv
@@ -56,187 +52,184 @@ pip install -r agents/order_agent/requirements.txt
 pip install -r agents/inventory_agent/requirements.txt
 pip install -r agents/refund_agent/requirements.txt
 pip install -r agents/escalation_agent/requirements.txt
-```
-
-### 4. Database setup
-
-```bash
-cd apps/orchestrator
-python manage.py migrate
-python manage.py seed_demo_data
-cd ../..
-```
-
-### 5. Run all services (one command)
-
-```bash
 npm install
+```
+
+### 4. Migrate + seed
+
+```bash
+npm run migrate
+npm run seed
+```
+
+### 5. Run all app processes
+
+```bash
 npm run dev
 ```
 
-This starts via TurboRepo:
-- Django orchestrator on http://localhost:8000
-- Order agent on http://localhost:5001
-- Inventory agent on http://localhost:5002
-- Refund agent on http://localhost:5003
-- Escalation agent on http://localhost:5004
+Uses `runserver --noreload` so only **one** orchestrator result consumer attaches to RabbitMQ.
 
-### 6. Or run services individually
+- Dashboard: http://localhost:8000/dashboard/
+- Orchestrator: http://localhost:8000
+- Agents: 5001–5004
+
+## Production-like local run (Docker Compose)
+
+Brings up RabbitMQ + Django orchestrator + all 4 agents:
 
 ```bash
-# Terminal 1 — RabbitMQ (if not already running)
-docker compose up
-
-# Terminal 2 — Django
-cd apps/orchestrator && python manage.py runserver
-
-# Terminal 3 — Order agent
-cd agents/order_agent && python app.py
-
-# Terminal 4 — Inventory agent
-cd agents/inventory_agent && python app.py
-
-# Terminal 5 — Refund agent
-cd agents/refund_agent && python app.py
-
-# Terminal 6 — Escalation agent
-cd agents/escalation_agent && python app.py
+cp .env.example .env   # fill credentials; keep API_KEY
+docker compose up --build
 ```
+
+Then:
+
+- API / dashboard: http://localhost:8000
+- RabbitMQ UI: http://localhost:15672
+- Agents: http://localhost:5001 … 5004
+
+Stop host `npm run dev` first so ports do not conflict.
+
+## Auth headers
+
+Protected routes (`/api/query/`, `/api/conversations/`, `/api/metrics/`, reprocess) require:
+
+```bash
+# Preferred
+-H "X-API-Key: dev-api-key-change-me"
+
+# Or
+-H "Authorization: Api-Key dev-api-key-change-me"
+```
+
+`GET /api/health/` stays **public** (no key). Rate limit defaults to 30 req/min per key (`RATE_LIMIT_PER_MINUTE`).
+
+Dashboard embeds the server `API_KEY` for local demo; change `API_KEY` in `.env` for anything beyond local use.
 
 ## Example API requests
 
-### Order status (no escalation)
+### Order status
 
 ```bash
 curl -X POST http://localhost:8000/api/query/ \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: dev-api-key-change-me" \
   -d "{\"query\": \"Where is my order #1234?\"}"
 ```
 
-### Inventory check
+### Escalation trigger (#3333)
 
 ```bash
 curl -X POST http://localhost:8000/api/query/ \
   -H "Content-Type: application/json" \
-  -d "{\"query\": \"Are Wireless Headphones in stock?\"}"
-```
-
-### Refund request (may escalate if low confidence)
-
-```bash
-curl -X POST http://localhost:8000/api/query/ \
-  -H "Content-Type: application/json" \
-  -d "{\"query\": \"I want a refund for order #5678, item was defective\"}"
-```
-
-### Escalation trigger example
-
-Order #3333 (Running Shoes) is outside the 14-day apparel refund window. The refund agent proposes a replacement, but Running Shoes are out of stock — triggering escalation:
-
-```bash
-curl -X POST http://localhost:8000/api/query/ \
-  -H "Content-Type: application/json" \
+  -H "X-API-Key: dev-api-key-change-me" \
   -d "{\"query\": \"I need a refund for order #3333, shoes are defective\"}"
 ```
 
-## v1.5 features
-
-### Interactive dashboard
-
-Open **http://localhost:8000/dashboard/**
-
-- Submit queries from the browser
-- One-click demo chips (order / inventory / refund / escalate)
-- Browse recent conversations + Redis traces
-- Reprocess a conversation with the same query
-
-### New API endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/health/` | Postgres + RabbitMQ + Redis health |
-| `GET` | `/api/conversations/` | Recent conversation list |
-| `GET` | `/api/conversations/{id}/` | Detail + Redis trace |
-| `GET` | `/api/conversations/{id}/trace/` | Trace only |
-| `POST` | `/api/conversations/{id}/reprocess/` | Replay the pipeline |
-
-### Richer query response
-
-`POST /api/query/` now also returns:
-
-- `last_agent_name`
-- `confidence_score`
-- `was_escalated`
-- `agents_involved` (e.g. `["refund_agent", "inventory_agent", "escalation_agent"]`)
-
-### Refund → Inventory fan-out (A2A)
-
-When the Refund Agent proposes a replacement (or inventory status is missing), Django publishes a second task to `inventory.tasks` over RabbitMQ, waits for `inventory_agent`, then decides on escalation. Agents still never call each other over HTTP.
+### Metrics / health
 
 ```bash
 curl http://localhost:8000/api/health/
-curl http://localhost:8000/api/conversations/?limit=10
+curl -H "X-API-Key: dev-api-key-change-me" http://localhost:8000/api/metrics/
 ```
+
+Without an API key, `/api/query/` returns **401**.
+
+## Messaging v2 reliability
+
+| Feature | Behavior |
+|---|---|
+| `correlation_id` | Set on every task; echoed on results |
+| Schema | `schema_version`, `correlation_id`, `attempt` |
+| DLQ | `*.tasks.dlq` and `orchestrator.results.dlq` after max attempts |
+| Idempotency | Redis `processed:{correlation_id}` skips duplicate result updates |
+| Failed status | Timeouts/errors set `ConversationLog.status=failed` + `error_message` |
+
+## Inspect DLQs / recreate queues after upgrade
+
+In RabbitMQ UI → Queues, look for `order.tasks.v2.dlq`, `inventory.tasks.v2.dlq`, `refund.tasks.v2.dlq`, `escalation.tasks.v2.dlq`, `orchestrator.results.v2.dlq`. Or:
+
+```bash
+docker exec agentic-rabbitmq rabbitmqctl list_queues name messages consumers
+```
+
+Expect **1 consumer** per live task/results queue under Compose (one replica per service).
+
+**Windows tip:** if queries fail with `PRECONDITION_FAILED` / timeouts after many restarts, leftover `python app.py` / `runserver` processes may still be attached. Stop `npm run dev`, then in PowerShell:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "name='python.exe'" |
+  Where-Object { $_.CommandLine -match 'manage\.py runserver|app\.py' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+npm run dev
+```
+
+If you see `PRECONDITION_FAILED` for queue args, consumers recreate queues with the
+named DLX `agentic.dlx`. Restart services after a broker wipe:
+
+```bash
+docker compose down -v && docker compose up -d rabbitmq
+npm run dev
+```
+
+## Tests
+
+```bash
+npm test
+# or
+cd apps/orchestrator && python -m pytest
+cd agents/refund_agent && python -m pytest tests -q
+```
+
+## Validation checklist
+
+- [ ] `GET /api/health/` → 200 without API key
+- [ ] `POST /api/query/` without key → 401
+- [ ] Order #1234 with key → `order_agent`, tracking present
+- [ ] Escalate #3333 with key → `was_escalated: true`, agents include escalation
+- [ ] Dashboard shows `request_id` / latency; metrics button loads counters
+- [ ] `npm test` / pytest passes
+- [ ] `docker compose up --build` starts full stack; RabbitMQ shows 1 consumer per queue
+
+## API surface
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `GET` | `/api/health/` | public | Postgres + RabbitMQ + Redis + result consumer |
+| `GET` | `/api/metrics/` | API key | Intent/escalation/timeout counters + latency |
+| `POST` | `/api/query/` | API key | Run orchestration pipeline |
+| `GET` | `/api/conversations/` | API key | Recent conversations |
+| `GET` | `/api/conversations/{id}/` | API key | Detail + Redis trace |
+| `POST` | `/api/conversations/{id}/reprocess/` | API key | Replay pipeline |
 
 ## Project structure
 
 ```
 AgenticOrderFlow/
-├── docker-compose.yml          # RabbitMQ
-├── apps/orchestrator/          # Django + DRF orchestrator
-│   ├── templates/dashboard.html
-│   └── core/
-│       ├── models.py           # Order, InventoryItem, RefundPolicy, ConversationLog
-│       ├── orchestration.py    # Query pipeline + refund fan-out
-│       ├── rabbitmq_client.py  # A2A publish / result consumer
-│       ├── redis_client.py     # Live trace in Upstash
-│       ├── intent.py           # Keyword intent classification
-│       ├── escalation.py       # Escalation rules
-│       └── views.py            # query / health / conversations / dashboard
+├── docker-compose.yml          # RabbitMQ + orchestrator + 4 agents
+├── apps/orchestrator/          # Django + DRF
 └── agents/
-    ├── common/                 # Shared messaging + env helpers
-    ├── order_agent/            # CrewAI — Order Status Specialist
-    ├── inventory_agent/        # CrewAI — Inventory Specialist
-    ├── refund_agent/           # CrewAI — Refund Policy Specialist
-    └── escalation_agent/       # AutoGen — conflict resolution
+    ├── common/                 # messaging + env
+    ├── order_agent/
+    ├── inventory_agent/
+    ├── refund_agent/
+    └── escalation_agent/
 ```
-
-## RabbitMQ queues
-
-| Queue | Direction |
-|---|---|
-| `order.tasks` | Django → Order Agent |
-| `inventory.tasks` | Django → Inventory Agent (also used for refund fan-out) |
-| `refund.tasks` | Django → Refund Agent |
-| `escalation.tasks` | Django → Escalation Agent |
-| `orchestrator.results` | All agents → Django |
 
 ## Escalation rules
 
-Django routes to the Escalation Agent when:
-1. Refund agent `confidence_score < 0.6`, OR
-2. Refund agent proposes a replacement but inventory is out of stock
+1. Refund `confidence_score < 0.6`, OR
+2. Replacement proposed but inventory out of stock
 
-The Escalation Agent runs a 2–3 turn AutoGen conversation between `CustomerIntent` and `PolicyResolver` to produce a final answer.
+## Demo data
 
-## Admin & demo data
-
-- Django admin: http://localhost:8000/admin/
-- Dashboard: http://localhost:8000/dashboard/
-- Seed demo data: `python manage.py seed_demo_data`
-- Demo orders: #1234 (shipped), #5678 (delivered), #9012 (placed), #3333 (escalation scenario)
-- Running Shoes are out of stock (triggers escalation scenarios)
+- Orders: #1234 shipped, #5678 delivered (refund-eligible), #3333 escalation (OOS shoes)
+- Seed: `npm run seed`
+- Admin: http://localhost:8000/admin/
 
 ## Environment variables
 
-See [`.env.example`](.env.example) for the full list. Never commit `.env` to version control.
+See [`.env.example`](.env.example). Never commit `.env`.
 
-## Health checks
-
-```bash
-curl http://localhost:8000/api/health/   # orchestrator dependencies
-curl http://localhost:5001/health        # order agent
-curl http://localhost:5002/health        # inventory agent
-curl http://localhost:5003/health        # refund agent
-curl http://localhost:5004/health        # escalation agent
-```
+Key v2 vars: `API_KEY`, `RATE_LIMIT_PER_MINUTE`, `LOG_LEVEL`, `MESSAGE_MAX_ATTEMPTS`.

@@ -1,6 +1,6 @@
 """Escalation rules — when to route to the AutoGen escalation agent."""
 
-ESCALATION_QUEUE = "escalation.tasks"
+ESCALATION_QUEUE = "escalation.tasks.v2"
 CONFIDENCE_THRESHOLD = 0.6
 
 

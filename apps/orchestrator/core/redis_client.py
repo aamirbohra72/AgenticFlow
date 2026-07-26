@@ -91,6 +91,22 @@ def get_stored_result(conversation_id: str) -> dict | None:
         return None
 
 
+def mark_processed(idem_key: str, ttl_seconds: int = 600) -> None:
+    """Mark a correlation+agent result as processed (idempotency)."""
+    try:
+        get_redis().set(f"processed:{idem_key}", "1", ex=ttl_seconds)
+    except Exception:
+        logger.exception("Failed to mark processed %s", idem_key)
+
+
+def was_processed(idem_key: str) -> bool:
+    try:
+        return bool(get_redis().get(f"processed:{idem_key}"))
+    except Exception:
+        logger.exception("Failed to check processed %s", idem_key)
+        return False
+
+
 def check_redis() -> dict:
     """Ping Upstash Redis for the health endpoint."""
     try:

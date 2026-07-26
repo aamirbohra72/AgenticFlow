@@ -12,7 +12,7 @@ from crew import run_inventory_crew
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_NAME = "inventory.tasks"
+QUEUE_NAME = "inventory.tasks.v2"
 AGENT_NAME = "inventory_agent"
 
 

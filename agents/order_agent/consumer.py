@@ -12,7 +12,7 @@ from crew import run_order_crew
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_NAME = "order.tasks"
+QUEUE_NAME = "order.tasks.v2"
 AGENT_NAME = "order_agent"
 
 

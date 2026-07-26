@@ -18,7 +18,7 @@ load_dotenv(REPO_ROOT / ".env")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "orchestrator", "testserver"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -39,6 +39,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.RequestIDMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -91,14 +92,48 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    # Public JSON API for local demo — no session auth (avoids CSRF on dashboard fetch)
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "core.auth.APIKeyAuthentication",
     ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "core.auth.IsAPIKeyAuthenticated",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "core.auth.APIKeyRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min",
+        "user": "30/min",
+    },
 }
 
 # RabbitMQ / Redis — loaded by client modules
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 UPSTASH_REDIS_URL = os.getenv("UPSTASH_REDIS_URL", "")
 UPSTASH_REDIS_TOKEN = os.getenv("UPSTASH_REDIS_TOKEN", "")
+
+# v2 security / ops
+API_KEY = os.getenv("API_KEY", "dev-api-key-change-me")
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+MESSAGE_MAX_ATTEMPTS = int(os.getenv("MESSAGE_MAX_ATTEMPTS", "3"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "jsonish": {
+            "format": "%(asctime)s level=%(levelname)s logger=%(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "jsonish",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": LOG_LEVEL,
+    },
+}

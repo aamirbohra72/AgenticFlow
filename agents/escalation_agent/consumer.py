@@ -12,7 +12,7 @@ from common.messaging import start_consumer
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_NAME = "escalation.tasks"
+QUEUE_NAME = "escalation.tasks.v2"
 AGENT_NAME = "escalation_agent"
 
 

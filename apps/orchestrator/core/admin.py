@@ -30,8 +30,9 @@ class ConversationLogAdmin(admin.ModelAdmin):
         "last_agent_name",
         "was_escalated",
         "confidence_score",
+        "request_id",
         "created_at",
     )
     list_filter = ("status", "intent", "was_escalated")
-    search_fields = ("query_text", "final_response", "last_agent_name")
+    search_fields = ("query_text", "final_response", "last_agent_name", "error_message", "request_id")
     readonly_fields = ("conversation_id", "created_at", "updated_at", "agents_involved")

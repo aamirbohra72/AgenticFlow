@@ -6,12 +6,14 @@ from .views import (
     ConversationReprocessView,
     ConversationTraceView,
     HealthView,
+    MetricsView,
     QueryView,
 )
 
 urlpatterns = [
     path("query/", QueryView.as_view(), name="query"),
     path("health/", HealthView.as_view(), name="health"),
+    path("metrics/", MetricsView.as_view(), name="metrics"),
     path("conversations/", ConversationListView.as_view(), name="conversation-list"),
     path(
         "conversations/<uuid:conversation_id>/",
