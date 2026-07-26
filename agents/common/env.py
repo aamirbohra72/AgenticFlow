@@ -10,3 +10,8 @@ load_dotenv(REPO_ROOT / ".env")
 
 if key := os.getenv("MISTRAL_API_KEY"):
     os.environ["MISTRAL_API_KEY"] = key
+
+# Disable CrewAI cloud tracing/telemetry (breaks on some Windows setups)
+os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
+os.environ.setdefault("CREWAI_TESTING", "true")
+os.environ.setdefault("OTEL_SDK_DISABLED", "true")

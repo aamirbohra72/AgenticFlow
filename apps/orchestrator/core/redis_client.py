@@ -48,3 +48,53 @@ def get_trace(conversation_id: str) -> list[dict]:
     except Exception:
         logger.exception("Failed to read trace for %s", conversation_id)
         return []
+
+
+def clear_trace(conversation_id: str) -> None:
+    """Delete the Redis trace list for a conversation (used on reprocess)."""
+    try:
+        client = get_redis()
+        client.delete(_trace_key(conversation_id))
+        client.delete(_result_key(conversation_id))
+    except Exception:
+        logger.exception("Failed to clear trace for %s", conversation_id)
+
+
+def _result_key(conversation_id: str) -> str:
+    return f"result:{conversation_id}"
+
+
+def store_result(conversation_id: str, result: dict) -> None:
+    """
+    Persist the latest agent result in Redis so any Django process can read it.
+
+    Needed because duplicate runserver/agent processes can steal RabbitMQ
+    messages; the in-memory waiter Event only works inside one process.
+    """
+    try:
+        get_redis().set(_result_key(conversation_id), json.dumps(result), ex=600)
+    except Exception:
+        logger.exception("Failed to store result for %s", conversation_id)
+
+
+def get_stored_result(conversation_id: str) -> dict | None:
+    """Read a result previously saved by store_result()."""
+    try:
+        raw = get_redis().get(_result_key(conversation_id))
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        return json.loads(raw)
+    except Exception:
+        logger.exception("Failed to read stored result for %s", conversation_id)
+        return None
+
+
+def check_redis() -> dict:
+    """Ping Upstash Redis for the health endpoint."""
+    try:
+        pong = get_redis().ping()
+        return {"ok": bool(pong), "detail": "pong" if pong else "no pong"}
+    except Exception as exc:
+        return {"ok": False, "detail": str(exc)}

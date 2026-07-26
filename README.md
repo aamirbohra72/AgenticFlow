@@ -139,19 +139,60 @@ curl -X POST http://localhost:8000/api/query/ \
   -d "{\"query\": \"I need a refund for order #3333, shoes are defective\"}"
 ```
 
+## v1.5 features
+
+### Interactive dashboard
+
+Open **http://localhost:8000/dashboard/**
+
+- Submit queries from the browser
+- One-click demo chips (order / inventory / refund / escalate)
+- Browse recent conversations + Redis traces
+- Reprocess a conversation with the same query
+
+### New API endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health/` | Postgres + RabbitMQ + Redis health |
+| `GET` | `/api/conversations/` | Recent conversation list |
+| `GET` | `/api/conversations/{id}/` | Detail + Redis trace |
+| `GET` | `/api/conversations/{id}/trace/` | Trace only |
+| `POST` | `/api/conversations/{id}/reprocess/` | Replay the pipeline |
+
+### Richer query response
+
+`POST /api/query/` now also returns:
+
+- `last_agent_name`
+- `confidence_score`
+- `was_escalated`
+- `agents_involved` (e.g. `["refund_agent", "inventory_agent", "escalation_agent"]`)
+
+### Refund → Inventory fan-out (A2A)
+
+When the Refund Agent proposes a replacement (or inventory status is missing), Django publishes a second task to `inventory.tasks` over RabbitMQ, waits for `inventory_agent`, then decides on escalation. Agents still never call each other over HTTP.
+
+```bash
+curl http://localhost:8000/api/health/
+curl http://localhost:8000/api/conversations/?limit=10
+```
+
 ## Project structure
 
 ```
 AgenticOrderFlow/
 ├── docker-compose.yml          # RabbitMQ
 ├── apps/orchestrator/          # Django + DRF orchestrator
+│   ├── templates/dashboard.html
 │   └── core/
 │       ├── models.py           # Order, InventoryItem, RefundPolicy, ConversationLog
+│       ├── orchestration.py    # Query pipeline + refund fan-out
 │       ├── rabbitmq_client.py  # A2A publish / result consumer
 │       ├── redis_client.py     # Live trace in Upstash
 │       ├── intent.py           # Keyword intent classification
 │       ├── escalation.py       # Escalation rules
-│       └── views.py            # POST /api/query/
+│       └── views.py            # query / health / conversations / dashboard
 └── agents/
     ├── common/                 # Shared messaging + env helpers
     ├── order_agent/            # CrewAI — Order Status Specialist
@@ -165,7 +206,7 @@ AgenticOrderFlow/
 | Queue | Direction |
 |---|---|
 | `order.tasks` | Django → Order Agent |
-| `inventory.tasks` | Django → Inventory Agent |
+| `inventory.tasks` | Django → Inventory Agent (also used for refund fan-out) |
 | `refund.tasks` | Django → Refund Agent |
 | `escalation.tasks` | Django → Escalation Agent |
 | `orchestrator.results` | All agents → Django |
@@ -181,6 +222,7 @@ The Escalation Agent runs a 2–3 turn AutoGen conversation between `CustomerInt
 ## Admin & demo data
 
 - Django admin: http://localhost:8000/admin/
+- Dashboard: http://localhost:8000/dashboard/
 - Seed demo data: `python manage.py seed_demo_data`
 - Demo orders: #1234 (shipped), #5678 (delivered), #9012 (placed), #3333 (escalation scenario)
 - Running Shoes are out of stock (triggers escalation scenarios)
@@ -192,8 +234,9 @@ See [`.env.example`](.env.example) for the full list. Never commit `.env` to ver
 ## Health checks
 
 ```bash
-curl http://localhost:5001/health   # order agent
-curl http://localhost:5002/health   # inventory agent
-curl http://localhost:5003/health   # refund agent
-curl http://localhost:5004/health   # escalation agent
+curl http://localhost:8000/api/health/   # orchestrator dependencies
+curl http://localhost:5001/health        # order agent
+curl http://localhost:5002/health        # inventory agent
+curl http://localhost:5003/health        # refund agent
+curl http://localhost:5004/health        # escalation agent
 ```

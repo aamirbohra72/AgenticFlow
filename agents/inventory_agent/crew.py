@@ -25,6 +25,8 @@ def run_inventory_crew(query_text: str, item_name: str | None) -> tuple[dict, fl
         tools=[check_inventory],
         llm=llm,
         verbose=True,
+        max_iter=3,
+        allow_delegation=False,
     )
 
     item_hint = item_name or "infer from the customer query"
@@ -38,7 +40,13 @@ def run_inventory_crew(query_text: str, item_name: str | None) -> tuple[dict, fl
         agent=agent,
     )
 
-    crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        process=Process.sequential,
+        verbose=True,
+        tracing=False,
+    )
     summary = str(crew.kickoff())
 
     # Compute structured payload and confidence from DB

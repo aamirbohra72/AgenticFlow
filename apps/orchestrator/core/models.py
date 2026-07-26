@@ -54,6 +54,10 @@ class ConversationLog(models.Model):
     intent = models.CharField(max_length=50, blank=True, default="")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     final_response = models.TextField(blank=True, null=True)
+    last_agent_name = models.CharField(max_length=100, blank=True, default="")
+    confidence_score = models.FloatField(null=True, blank=True)
+    was_escalated = models.BooleanField(default=False)
+    agents_involved = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

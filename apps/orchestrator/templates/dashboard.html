@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agentic Order Flow — Dashboard</title>
+  <style>
+    :root {
+      --bg: #f3f5f2;
+      --panel: #ffffff;
+      --ink: #1a2421;
+      --muted: #5c6b66;
+      --line: #d5ddd8;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+      --warn: #b45309;
+      --danger: #b91c1c;
+      --ok: #15803d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "IBM Plex Sans", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, #dff7f1 0%, transparent 40%),
+        radial-gradient(circle at 90% 10%, #e8efe9 0%, transparent 35%),
+        var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.5rem 2rem 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      letter-spacing: -0.02em;
+    }
+    header p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
+    .health {
+      font-size: 0.85rem;
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 999px;
+    }
+    .health.ok { color: var(--ok); }
+    .health.bad { color: var(--danger); }
+    main {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 1.25rem;
+      padding: 1rem 2rem 2rem;
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.1rem 1.2rem;
+      box-shadow: 0 8px 24px rgba(26, 36, 33, 0.04);
+    }
+    .panel h2 {
+      margin: 0 0 0.85rem;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.75rem;
+      font: inherit;
+      background: #fbfcfb;
+    }
+    .actions {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+    button, .chip {
+      border: 0;
+      border-radius: 8px;
+      padding: 0.55rem 0.9rem;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+    button.secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .chip {
+      background: #eef2ef;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .chip:hover { background: var(--accent-soft); color: var(--accent); }
+    #result, #detail {
+      margin-top: 1rem;
+      white-space: pre-wrap;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.82rem;
+      background: #0f1a17;
+      color: #d7ebe4;
+      border-radius: 8px;
+      padding: 0.9rem;
+      max-height: 360px;
+      overflow: auto;
+    }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      max-height: 520px;
+      overflow: auto;
+    }
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .item:hover, .item.active {
+      border-color: var(--accent);
+      background: #f4fffc;
+    }
+    .item .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      background: #e8efe9;
+    }
+    .badge.escalated { background: #ffedd5; color: var(--warn); }
+    .badge.resolved { background: #dcfce7; color: var(--ok); }
+    .query-line {
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Agentic Order Flow</h1>
+      <p>Query playground + live agent trace browser</p>
+    </div>
+    <div id="health" class="health">Checking health…</div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Submit query</h2>
+      <p style="margin:0 0 0.75rem;color:var(--muted);font-size:0.9rem;">
+        1) Click a demo chip to fill the box &nbsp;→&nbsp; 2) Click <strong>Send to agents</strong>
+      </p>
+      <textarea id="query" placeholder='Where is my order #1234?'>Where is my order #1234?</textarea>
+      <div class="actions">
+        <button class="primary" id="send">Send to agents</button>
+        <button class="secondary" id="refresh">Refresh list</button>
+      </div>
+      <div class="actions">
+        <button class="chip" data-q="Where is my order #1234?" data-send="1">Run Order #1234</button>
+        <button class="chip" data-q="Are Wireless Headphones in stock?" data-send="1">Run Inventory</button>
+        <button class="chip" data-q="I want a refund for order #5678, item was defective" data-send="1">Run Refund #5678</button>
+        <button class="chip" data-q="I need a refund for order #3333, shoes are defective" data-send="1">Run Escalate #3333</button>
+      </div>
+      <div id="result">Response will appear here…</div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent conversations</h2>
+      <div id="list" class="list">Loading…</div>
+      <div id="detail">Select a conversation to inspect its Redis trace…</div>
+      <div class="actions">
+        <button class="secondary" id="reprocess" disabled>Reprocess selected</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let selectedId = null;
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+      return match ? decodeURIComponent(match[2]) : "";
+    }
+
+    function apiHeaders(extra = {}) {
+      const headers = { "Content-Type": "application/json", ...extra };
+      const csrf = getCookie("csrftoken");
+      if (csrf) headers["X-CSRFToken"] = csrf;
+      return headers;
+    }
+
+    async function loadHealth() {
+      const el = document.getElementById("health");
+      try {
+        const res = await fetch("/api/health/");
+        const data = await res.json();
+        el.textContent = `System: ${data.status}`;
+        el.className = "health " + (data.status === "healthy" ? "ok" : "bad");
+      } catch (e) {
+        el.textContent = "System: unreachable";
+        el.className = "health bad";
+      }
+    }
+
+    async function loadConversations() {
+      const list = document.getElementById("list");
+      const res = await fetch("/api/conversations/?limit=30");
+      const rows = await res.json();
+      if (!rows.length) {
+        list.textContent = "No conversations yet.";
+        return;
+      }
+      list.innerHTML = "";
+      rows.forEach((row) => {
+        const div = document.createElement("div");
+        div.className = "item" + (row.conversation_id === selectedId ? " active" : "");
+        const badgeClass = row.was_escalated ? "escalated" : (row.status === "resolved" ? "resolved" : "");
+        div.innerHTML = `
+          <div class="meta">
+            <span>${row.intent || "?"} · ${row.last_agent_name || "—"}</span>
+            <span class="badge ${badgeClass}">${row.was_escalated ? "escalated" : row.status}</span>
+          </div>
+          <div class="query-line">${row.query_text}</div>
+        `;
+        div.onclick = () => selectConversation(row.conversation_id);
+        list.appendChild(div);
+      });
+    }
+
+    async function selectConversation(id) {
+      selectedId = id;
+      document.getElementById("reprocess").disabled = false;
+      await loadConversations();
+      const res = await fetch(`/api/conversations/${id}/`);
+      const data = await res.json();
+      document.getElementById("detail").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function sendQuery() {
+      const query = document.getElementById("query").value.trim();
+      const resultEl = document.getElementById("result");
+      if (!query) {
+        resultEl.textContent = "Type a query first, or click a Run … chip.";
+        return;
+      }
+      resultEl.textContent = "Waiting for agents (CrewAI / AutoGen via RabbitMQ)…";
+      try {
+        const res = await fetch("/api/query/", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({ query }),
+        });
+        const data = await res.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        if (data.conversation_id) {
+          selectedId = data.conversation_id;
+          document.getElementById("reprocess").disabled = false;
+        }
+        await loadConversations();
+        if (data.conversation_id) await selectConversation(data.conversation_id);
+      } catch (e) {
+        resultEl.textContent = String(e);
+      }
+    }
+
+    async function reprocess() {
+      if (!selectedId) return;
+      const resultEl = document.getElementById("result");
+      resultEl.textContent = `Reprocessing ${selectedId}…`;
+      const res = await fetch(`/api/conversations/${selectedId}/reprocess/`, {
+        method: "POST",
+        headers: apiHeaders(),
+      });
+      const data = await res.json();
+      resultEl.textContent = JSON.stringify(data, null, 2);
+      await selectConversation(selectedId);
+    }
+
+    document.getElementById("send").onclick = sendQuery;
+    document.getElementById("refresh").onclick = loadConversations;
+    document.getElementById("reprocess").onclick = reprocess;
+    document.querySelectorAll(".chip").forEach((btn) => {
+      btn.onclick = async () => {
+        document.getElementById("query").value = btn.dataset.q;
+        if (btn.dataset.send === "1") await sendQuery();
+      };
+    });
+
+    loadHealth();
+    loadConversations();
+    setInterval(loadHealth, 15000);
+    setInterval(loadConversations, 10000);
+  </script>
+</body>
+</html>

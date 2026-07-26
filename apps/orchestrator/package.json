@@ -2,6 +2,6 @@
   "name": "orchestrator",
   "private": true,
   "scripts": {
-    "dev": "python manage.py runserver 0.0.0.0:8000"
+    "dev": "python manage.py runserver 0.0.0.0:8000 --noreload"
   }
 }

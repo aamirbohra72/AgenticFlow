@@ -23,7 +23,15 @@ class RefundPolicyAdmin(admin.ModelAdmin):
 
 @admin.register(ConversationLog)
 class ConversationLogAdmin(admin.ModelAdmin):
-    list_display = ("conversation_id", "intent", "status", "created_at")
-    list_filter = ("status", "intent")
-    search_fields = ("query_text", "final_response")
-    readonly_fields = ("conversation_id", "created_at", "updated_at")
+    list_display = (
+        "conversation_id",
+        "intent",
+        "status",
+        "last_agent_name",
+        "was_escalated",
+        "confidence_score",
+        "created_at",
+    )
+    list_filter = ("status", "intent", "was_escalated")
+    search_fields = ("query_text", "final_response", "last_agent_name")
+    readonly_fields = ("conversation_id", "created_at", "updated_at", "agents_involved")

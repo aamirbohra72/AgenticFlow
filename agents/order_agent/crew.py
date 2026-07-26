@@ -26,6 +26,8 @@ def run_order_crew(query_text: str, order_id: str | None) -> dict:
         tools=[get_order_status],
         llm=llm,
         verbose=True,
+        max_iter=3,
+        allow_delegation=False,
     )
 
     order_hint = order_id or "extract from the customer query"
@@ -40,7 +42,13 @@ def run_order_crew(query_text: str, order_id: str | None) -> dict:
         agent=agent,
     )
 
-    crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        process=Process.sequential,
+        verbose=True,
+        tracing=False,
+    )
     result = crew.kickoff()
 
     summary = str(result)

@@ -107,6 +107,22 @@ def unregister_result_waiter(conversation_id: str) -> None:
         _result_waiters.pop(conversation_id, None)
 
 
+def reset_result_waiter(conversation_id: str) -> threading.Event:
+    """Clear any prior result so the next wait_for_result() blocks for a new agent."""
+    unregister_result_waiter(conversation_id)
+    return register_result_waiter(conversation_id)
+
+
+def check_rabbitmq() -> dict:
+    """Lightweight connectivity check for the health endpoint."""
+    try:
+        connection = _connect()
+        connection.close()
+        return {"ok": True, "detail": "connected"}
+    except Exception as exc:
+        return {"ok": False, "detail": str(exc)}
+
+
 def notify_result_waiter(conversation_id: str, result: dict) -> None:
     """Called by the background consumer when a matching result arrives."""
     with _waiters_lock:
@@ -121,9 +137,11 @@ def wait_for_result(conversation_id: str, timeout: float = 30.0, agent_name: str
     """
     Block until a result for conversation_id arrives or timeout expires.
 
-  Polls the in-memory Event set by the background consumer thread.
-  Optionally filter by agent_name (e.g. wait specifically for escalation_agent).
+    Primary path: in-memory Event set by the background consumer thread.
+    Fallback: poll Redis `result:{conversation_id}` (survives duplicate consumers).
     """
+    from core.redis_client import get_stored_result
+
     with _waiters_lock:
         entry = _result_waiters.get(conversation_id)
         if not entry:
@@ -148,6 +166,11 @@ def wait_for_result(conversation_id: str, timeout: float = 30.0, agent_name: str
             if agent_name is None or store.get("agent_name") == agent_name:
                 return dict(store)
 
+        # Cross-process fallback: another Django consumer may have acked the message
+        cached = get_stored_result(conversation_id)
+        if cached and (agent_name is None or cached.get("agent_name") == agent_name):
+            return cached
+
     raise TimeoutError(f"No result received for conversation {conversation_id} within {timeout}s")
 
 
@@ -158,8 +181,9 @@ def consume_results_loop() -> None:
     Runs in a daemon thread started from core.apps.CoreConfig.ready().
     Each message is routed to the waiting API view via notify_result_waiter().
     """
-    from core.redis_client import append_trace
+    from core.redis_client import append_trace, store_result
 
+    print(f"[orchestrator] Result consumer starting on {RESULTS_QUEUE}", flush=True)
     while True:
         try:
             connection = _connect()
@@ -176,10 +200,11 @@ def consume_results_loop() -> None:
                     message = payload.get("summary") or payload.get("final_response") or str(payload)
 
                     logger.info("Received result from %s for %s", agent_name, conversation_id)
-
-                    append_trace(conversation_id, agent_name, message)
+                    print(f"[orchestrator] Received result from {agent_name} for {conversation_id}", flush=True)
 
                     if conversation_id:
+                        store_result(conversation_id, result)
+                        append_trace(conversation_id, agent_name, message)
                         notify_result_waiter(conversation_id, result)
                 except Exception:
                     logger.exception("Error processing result message")
@@ -188,7 +213,9 @@ def consume_results_loop() -> None:
 
             channel.basic_consume(queue=RESULTS_QUEUE, on_message_callback=on_message)
             logger.info("Result consumer listening on %s", RESULTS_QUEUE)
+            print(f"[orchestrator] Result consumer listening on {RESULTS_QUEUE}", flush=True)
             channel.start_consuming()
         except Exception:
             logger.exception("Result consumer disconnected, retrying in 5s")
+            print("[orchestrator] Result consumer disconnected, retrying in 5s", flush=True)
             time.sleep(5)
